@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Create main directory
-mkdir -p insurance-retention-bot
+mkdir -p bot
 
 # Navigate to the main directory
-cd insurance-retention-bot
+cd bot
 
 # Create subdirectories
 mkdir -p data
