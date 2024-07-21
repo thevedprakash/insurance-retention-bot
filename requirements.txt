@@ -13,3 +13,6 @@ google-generativeai
 langchain-google-genai
 requests 
 python-dotenv 
+flask==3.0.3
+flask_cors==4.0.1
+Flask-Session==0.8.0

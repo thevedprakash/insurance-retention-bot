@@ -1,22 +1,27 @@
+# Use the official lightweight Python image.
 FROM python:3.10-slim
 
-ENV PYTHONUNBUFFERED=True
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
 
+# Set the working directory
 WORKDIR /app
 
 # Create a non-root user and switch to it
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
 USER appuser
 
-COPY ./requirements.txt ./requirements.txt
+# Copy the requirements file into the container
+COPY --chown=appuser:appuser requirements.txt /app/requirements.txt
 
-# Use --no-cache-dir to avoid caching packages
+# Install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
-COPY . /app
+# Copy the entire application code into the container
+COPY --chown=appuser:appuser . /app
+
+# Expose the port the app runs on
+EXPOSE 5000
 
 # Set the entry point to run the Flask application
-ENTRYPOINT ["python", "run.py"]
-
-EXPOSE 8000
+ENTRYPOINT ["python", "app.py"]

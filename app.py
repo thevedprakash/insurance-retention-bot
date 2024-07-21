@@ -1,124 +1,134 @@
-import streamlit as st
+import logging
+import os
+from flask import Flask, request, jsonify, session, render_template
+from flask_session import Session
 import pandas as pd
 from bot.gpt_agent import GPT
-from bot.utils import load_customer_data
-from langchain_google_genai import ChatGoogleGenerativeAI
-import random
-import time
+from config import Config
+from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+
+load_dotenv()
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'supersecretkey'
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
+
+# Load configuration
+class Config:
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# Initialize the GPT agent
 def initialize_agent():
-    llm = ChatGoogleGenerativeAI(model='gemini-1.0-pro', temperature=0.2)
-    gpt_agent = GPT.from_llm(llm=llm, verbose=True)
-    return gpt_agent
+    api_key = Config.GOOGLE_API_KEY
+    llm = ChatGoogleGenerativeAI(model='gemini-1.0-pro', temperature=0.2, google_api_key=api_key)
+    return GPT.from_llm(llm=llm, verbose=True)
 
-import random
-import time
+gpt_agent = initialize_agent()
 
-def get_current_timestamp():
-    return str(int(time.time() * 1000))
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-import random
-import time
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    logging.info("File upload endpoint called.")
+    if 'file' not in request.files:
+        logging.error("No file part in the request.")
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        logging.error("No file selected for uploading.")
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        logging.info("File successfully uploaded.")
+        df = pd.read_csv(file)
+        # # Replace NaN values with None (which will be converted to null in JSON)
+        # df = df.where(pd.notnull(df), None)
+        session['customers'] = df.to_dict(orient='records')
+        logging.debug(f"Customers loaded: {session['customers']}")
+        if session['customers']:
+            customer = session['customers'][0]
+            gpt_agent.professional_name = f"{customer['First Name']} {customer['Last Name']}"
+            gpt_agent.seed_agent()  # Start with the initial stage
+            initial_bot_message = gpt_agent.step()
+            logging.debug(f"Initial bot message: {initial_bot_message}")
+            conversation_history = [{"speaker": "Agent", "message": initial_bot_message}]
+            session['conversation_history'] = conversation_history
 
-def get_current_timestamp():
-    return str(int(time.time() * 1000))
+            # Create a response dictionary
+            response_data = {
+                "customer": f"{customer}",
+                "conversation_history": conversation_history
+            }
 
-def handle_conversation(data):
-    customer = data.iloc[0]
+            logging.debug(f"Response data: {response_data}")
+            return jsonify(response_data)
+        else:
+            logging.error("No customers found in the uploaded file.")
+            return jsonify({"error": "No customers found"}), 400
 
-    if 'conversation_history' not in st.session_state:
-        st.session_state.conversation_history = []
-        print(f"1. {st.session_state}")
+@app.route('/start_conversation', methods=['POST'])
+def start_conversation():
+    global gpt_agent
+    if 'customers' not in session:
+        logging.error("No customers found in session.")
+        return jsonify({"error": "No customers found in session"}), 400
 
-    if 'conversation_stage' not in st.session_state:
-        st.session_state.conversation_stage = '1'
-        print(f"2. {st.session_state}")
+    customer = session['customers'][0]  # Get the first customer for the conversation
+    logging.debug(f"Starting conversation with customer: {customer}")
+    gpt_agent.professional_name = f"{customer['First Name']} {customer['Last Name']}"
+    gpt_agent.seed_agent()  # Start with the initial stage
 
-    if 'gpt_agent' not in st.session_state:
-        st.session_state.gpt_agent = initialize_agent()
-        print(f"3. {st.session_state}")
+    # Generate the initial bot message
+    bot_message = gpt_agent.step()
+    logging.debug(f"Initial bot message: {bot_message}")
+    conversation_history = [{"speaker": "Agent", "message": bot_message}]
+    session['conversation_history'] = conversation_history
 
-    conversation_history = st.session_state.conversation_history
-    conversation_stage = st.session_state.conversation_stage
-    gpt_agent = st.session_state.gpt_agent
+    return jsonify({"conversation_history": conversation_history})
 
-    print(f"Starting conversation with {customer['First Name']} {customer['Last Name']}...")
+@app.route('/user_response', methods=['POST'])
+def user_response():
+    global gpt_agent
+    data = request.json
+    user_message = data['message']
+    logging.debug(f"User message: {user_message}")
 
-    if len(conversation_history) == 0:
-        # Generate the initial prompt using the LLM
-        ai_message = gpt_agent.step()
-        st.write(f"Agent: {ai_message}")
-        conversation_history.append(("Introduction", ai_message))
-        st.session_state.conversation_history = conversation_history
-        print(conversation_history)
+    gpt_agent.human_step(user_message)
+    bot_message = gpt_agent.step()
+    logging.debug(f"Bot message: {bot_message}")
+    
+    if 'conversation_history' not in session:
+        session['conversation_history'] = []
 
-    # Display the last agent message
-    if conversation_history:
-        print(f"Agent: {conversation_history[-1][1]}")
-        # st.write(f"Agent: {conversation_history[-1][1]}")
+    session['conversation_history'].append({"speaker": "User", "message": user_message})
+    session['conversation_history'].append({"speaker": "Agent", "message": bot_message})
 
-    print("I'm here to print customer response.")
-    # Use the current timestamp to generate a unique key
-    response_key = f"stage_{conversation_stage}_{get_current_timestamp()}"
+    return jsonify({"bot_response": bot_message, "conversation_history": session['conversation_history']})
 
-    # Create the text input widget for customer response
-    # response = st.text_input("Customer Response", key=response_key)
-    # response = "Tell me the benefit of the Policy. I don't get what is it for." # 'Value Proposition'
-    # response = "I'm unhappy I submitted claim 5 times before but it get fulfilled just one. I'm frustrated with decline of claim request citing silly reasons." # 'Needs Analysis'
-    response= "As I mentioned earlier, my claim has been processed only 1 out of 5 time. How this can dealt with is there any way to ensure my claim getting acceted." #'Needs Analysis:'
-    # response = "I have seen another policy which deliver similar benefits why should I not use it." # 'Value Proposition'
-    # response = "I would like to talk to customer care to discuss this further." # 'Introduction'
-    # response = "I'm happy to continue making payment for policy premium." # 'Introduction'
-    # response = "I'm Busy" # 'End Conversation' 
-    # response = 'Hey Thanks for reaching, I made payment today. GoodBye.' # 'End Conversation'
-    print(f"Customer Response: {response}")
+@app.route('/next_customer', methods=['POST'])
+def next_customer():
+    global gpt_agent
+    if 'customers' not in session:
+        logging.error("No customers found in session.")
+        return jsonify({"error": "No customers found in session"}), 400
 
-    # Only display "Next Stage" button if there is user input
-    if response:
-        print(f"{response}")
-        value = st.button("Next Stage", key=f"button_{get_current_timestamp()}")
-        print(f"value: {value},")
-        # if st.button("Next Stage", key=f"button_{get_current_timestamp()}"):
-        print("1")
-        st.write(f"Customer: {response}")
-        print("2")
-        conversation_history.append((conversation_stage, response))
-        print("3")
-        gpt_agent.human_step(response)
-        conversation_stage = gpt_agent.determine_conversation_stage()
-        print(f"New Conversation Stage: {conversation_stage}")
+    # Remove the first customer and move to the next one
+    session['customers'].pop(0)
+    if not session['customers']:
+        logging.info("No more customers.")
+        return jsonify({"message": "No more customers"}), 200
 
-        ai_message = gpt_agent.step()
-        st.write(f"Agent: {ai_message}")
-        print("4")
-        conversation_history.append((conversation_stage, ai_message))
+    customer = session['customers'][0]
+    logging.debug(f"Next customer: {customer}")
+    gpt_agent.professional_name = f"{customer['First Name']} {customer['Last Name']}"
+    gpt_agent.seed_agent()  # Reset for the new customer
 
-        # Update session state
-        st.session_state.conversation_history = conversation_history
-        st.session_state.conversation_stage = conversation_stage
-        print("5")
+    return jsonify({"customer": customer})
 
-    st.write("Conversation History:")
-    for stage, (prompt, response) in enumerate(conversation_history):
-        st.write(f"Stage {stage+1}:")
-        st.write(f"Conversation Category: {prompt}")
-        st.write(f"Sophia: {response}")
-
-
-# ---------------------------------------------------------
-
-def main():
-    st.title("Insurance Customer Retention Bot")
-    st.write("Upload your customer data and start the conversation")
-
-    uploaded_file = st.file_uploader("Choose a file", type=["csv"])
-
-    if uploaded_file is not None:
-        data = load_customer_data(uploaded_file)
-        st.write(data.head())
-
-        if st.button("Start Conversation"):
-            handle_conversation(data)
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

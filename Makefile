@@ -1,7 +1,6 @@
 GCP_PROJECT=test-setup-405206
-IMAGE_NAME=flask
-VERSION=1.3
-
+IMAGE_NAME=insurance-bot
+VERSION=1.1
 build:
 	docker build  -t "${IMAGE_NAME}" .
 
