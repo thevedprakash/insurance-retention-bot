@@ -1,7 +1,15 @@
 from typing import List, Dict, Any
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-from langchain.llms import ChatGoogleGenerativeAI
+
+# from langchain.chat_models import AzureChatOpenAI
+from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+from bot.utils import create_new_memory_retriever
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain.chains.summarize import load_summarize_chain
 from pydantic import BaseModel, Field
 
 class StageAnalyzerChain(LLMChain):
@@ -65,7 +73,7 @@ class ConversationChain(LLMChain):
         When you are done generating, end with '<END_OF_TURN>' to give the user a chance to respond.
         When the conversation and purpose are over, don't respond again.
 
-        If the customer says goodbye, go to the End Conversation stage and end the conversation politely.
+        If the customer says goodbye, that would be all,No I don't need further assistance,bye, Okay Thankyou or similar phrases indicating customer is done with conversation go to the End Conversation stage and end the conversation politely.
         If the customer says they are busy, go to the End Conversation stage and end the conversation, don't respond further.
         If the customer says to contact them at a particular time or day, say that you will contact them at that particular time or day again and end the conversation completely and go to the End Conversation stage.
 
