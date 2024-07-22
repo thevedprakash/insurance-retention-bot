@@ -1,4 +1,58 @@
-Here is a `README.md` file for your project:
+# Insurance Churn Prediction Model
+
+## Problem Statement.
+
+In this exercise, you are required to showcase your knowledge and skills in applying AI/ML
+techniques to help Prudential gain a competitive edge. Given that real-world data can be scarce and
+sometimes inaccessible to Data Scientists, and yet you need to demonstrate AI/ML can bring value
+to business in a responsible way. To overcome this challenge, you have decided to use a "synthetic
+data" approach to illustrate how your solution can be applied by first generating the data yourself.
+
+- Implement an early lapse prediction model to improve customer retention and churn rate by
+  triggering prompts/agent follow-up.
+
+Given a short problem statement engage in a meaningful understanding to scope the problem and use it to convert business problem into a machine learning and Gen AI problem is the key.
+
+## Clarifying requirements and Methodology adopted.
+
+### Clarifying requirements
+
+Let's begin by understanding the scope of the problem more clearly.
+
+Customer Journey: Can you describe the typical customer journey and at what points you believe customers are at risk of lapsing?
+Data Availability: Although we will be using synthetic data, understanding the types of data usually available (customer demographics, transaction history, engagement metrics) will help us generate realistic synthetic data.
+Business Goals: What are the primary business metrics we're aiming to improve? Is it reducing churn rate by a certain percentage, increasing customer lifetime value, or something else?
+Intervention Mechanisms: What are the current intervention methods? Are we using email prompts, push notifications, direct agent calls, or a combination of these?
+Timeliness: How early do we need to predict the lapse for the intervention to be effective? Are there specific time frames or critical points in the customer lifecycle?
+Success Metrics: How do we measure the success of the interventions? Are we tracking re-engagement rates, changes in customer behavior, or other metrics?
+
+### Methodology
+
+With these details in mind, let's break down the problem into a machine learning and generative AI problem:
+
+Data Collection and Preprocessing:
+
+- Synthetic Data Generation: Since real-world data is scarce, we'll generate synthetic data that mimics real customer data. This includes customer demographics, transaction history, engagement metrics, and support interactions.
+- Feature Engineering: Create features that capture customer behavior and interaction patterns. This could include features like recency, frequency, and monetary value (RFM), engagement scores, and sentiment analysis from support interactions.
+- Labeling: Define what constitutes a "lapsed" customer. This could be based on inactivity for a certain period, a drop in engagement metrics, or cancellation of services.
+
+- Predictive Modeling:
+
+  - Model Selection: Choose appropriate machine learning models for predicting lapse. This could involve classification models like logistic regression, random forests, gradient boosting machines, or neural networks.
+  - Training and Validation: Split the synthetic data into training and validation sets, and train the models to predict the probability of a customer lapsing. Evaluate the models using metrics like precision, recall, F1-score, and ROC-AUC.
+
+- Intervention Strategy:
+
+  - Trigger Mechanisms: Develop a system to trigger interventions based on the model's predictions. This could be automated chatbot prompts, email propmts, push notifications, or tasks assigned to customer service agents.
+  - Personalization: Use generative AI models to create personalized messages for each customer. This could involve generating email content, push notification text, or call scripts that are tailored to the customer's behavior and preferences.
+
+- Monitoring and Feedback Loop:
+  - Real-time Monitoring: Implement a system to monitor customer activity and model predictions in real-time. This allows for timely interventions.
+  - Feedback Loop: Continuously collect data on the effectiveness of the interventions. Use this data to retrain and improve the model, ensuring it adapts to changing customer behavior over time.
+
+This Repository holds code for the part second part where we are toenagage customer at risk in conversation by automated GenAI chatbot to understand and try to resolve the customers issue.
+
+![High Level System Design](img/HighLevelSystemDesign.png)
 
 ### `README.md`
 
@@ -10,14 +64,20 @@ This project is a Streamlit application designed to help insurance companies ret
 
 ```
 
-insurance-retention-bot/
+.
 ├── app.py
-├── gpt_agent.py
-├── utils.py
-├── config.py
-├── data/
-│ └── customers.csv
-└── requirements.txt
+├── bot/
+│ ├── init.py
+│ ├── gpt_agent.py
+│ └── utils.py
+├── static/
+│ ├── styles.css
+│ └── script.js
+├── templates/
+│ └── index.html
+├── Dockerfile
+├── requirements.txt
+└── README.md
 
 ```
 
@@ -38,32 +98,6 @@ Ensure your CSV file (`customers.csv`) in the `data/` directory contains the fol
 | ---------- | --------- | ------ | --- | ------ | ---------- | ------------- | ----------------- | ------------------ | ------------ | ------------ | ------------------ | ----------------------- | ------------------------------- | --------------------------------------- | ---------------------- | ------------------ | --------------- | ------------ | -------------------- |
 | John       | Doe       | Male   | 45  | East   | Engineer   | P123456       | 2019-01-01        | 2024-01-01         | Monthly      | Life         | 80                 | 1                       | Email                           | 2                                       | 0                      | 0                  | 750             | 0.35         |
 | Jane       | Smith     | Female | 50  | West   | Teacher    | P654321       | 2018-06-01        | 2023-06-01         | Quarterly    | Health       | 70                 | 3                       | Phone                           | 4                                       | 2                      | 5000               | 0.4             | 720          | 0.30                 |
-
-## Setup Instructions
-
-1. **Clone the Repository**:
-
-   ```
-   git clone https://github.com/thevedprakash/insurance-retention-bot.git
-   cd insurance-retention-bot
-   ```
-
-2. **Run Setup Script**:
-
-   ```
-   bash setup.sh
-   ```
-
-3. **Install Dependencies**:
-
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. **Run the Application**:
-   ```sh
-   streamlit run app.py
-   ```
 
 ## How It Works
 
@@ -96,18 +130,16 @@ Configuration settings for the application (currently empty but can be extended)
 
 A sample `customers.csv` file is provided in the `data/` directory to demonstrate the required data structure and fields.
 
-## License
+## Deployed Demostration
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Solution is deployed on GCP using contanizered Image of the code here.
 
-## Contributing
+https://insurance-bot-nbis7ncpsa-uc.a.run.app/
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Demo
 
-## Contact
+- Step 1 : Upload your file need to talk to high churn risk customer prediction. [provided under data folder]
+  ![Interface to upload](img/Interface.png)
 
-For questions or support, please open an issue in the repository.
-
-```
-This `README.md` file provides a comprehensive overview of the project, including setup instructions, explanations of the key components, and a sample CSV file structure. It is formatted with proper markdown to highlight important sections and improve readability.
-```
+- Step 2 : Start Conversation.
+  ![Interface to upload](img/GenAIPoweredBot.png)
