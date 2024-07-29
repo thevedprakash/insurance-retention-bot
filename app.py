@@ -5,6 +5,7 @@ from flask_session import Session
 import pandas as pd
 from bot.gpt_agent import GPT, StageAnalyzerChain, ConversationChain
 from bot.rag_gpt_agent import RAGGPT
+from bot.utils import set_customer_details
 from bot.document_processor import initialize_document_store, retrieve_relevant_documents
 from config import Config
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
@@ -27,6 +28,7 @@ class Config:
 def initialize_agent():
     api_key = Config.GOOGLE_API_KEY
     llm = ChatGoogleGenerativeAI(model='gemini-1.0-pro', temperature=0.2, google_api_key=api_key)
+    # llm = ChatGoogleGenerativeAI(model='gemini-1.5-flash-latest', temperature=0.2, google_api_key=api_key)
     return GPT.from_llm(llm=llm, verbose=True), StageAnalyzerChain.from_llm(llm=llm, verbose=True), ConversationChain.from_llm(llm=llm, verbose=True)
 
 gpt_agent, stage_analyzer_chain, conversation_utterance_chain = initialize_agent()
@@ -65,7 +67,6 @@ def upload_file():
     if file:
         logging.info("File successfully uploaded.")
         df = pd.read_csv(file)
-        logging.info(f"Raw data loaded: {df}")
 
         # Handling missing or null values by replacing with appropriate defaults
         df.fillna({
@@ -91,34 +92,11 @@ def upload_file():
             'Debt-to-Income Ratio': 0.0
         }, inplace=True)
 
-        logging.info(f"After filling for any missing values: {df}")
-
         session['customers'] = df.to_dict(orient='records')
         logging.debug(f"Customers loaded: {session['customers']}")
         if session['customers']:
             customer = session['customers'][0]
-            rag_gpt_agent.professional_name = f"{customer['First Name']} {customer['Last Name']}"
-            rag_gpt_agent.first_name = customer['First Name']
-            rag_gpt_agent.last_name = customer['Last Name']
-            rag_gpt_agent.gender = customer['Gender']
-            rag_gpt_agent.age = customer['Age']
-            rag_gpt_agent.region = customer['Region']
-            rag_gpt_agent.occupation = customer['Occupation']
-            rag_gpt_agent.policy_number = customer['Policy Number']
-            rag_gpt_agent.policy_start_date = customer['Policy Start Date']
-            rag_gpt_agent.policy_expiry_date = customer['Policy Expiry Date']
-            rag_gpt_agent.premium_type = customer['Premium Type']
-            rag_gpt_agent.product_type = customer['Product Type']
-            rag_gpt_agent.satisfaction_score = customer['Satisfaction Score']
-            rag_gpt_agent.late_payments = customer['Number of Late Payments']
-            rag_gpt_agent.preferred_communication = customer['Preferred Communication Channel']
-            rag_gpt_agent.customer_service_interactions = customer['Number of Customer Service Interactions']
-            rag_gpt_agent.claims_filed = customer['Number of Claims Filed']
-            rag_gpt_agent.total_claim_amount = customer['Total Claim Amount']
-            rag_gpt_agent.claim_frequency = customer['Claim Frequency']
-            rag_gpt_agent.credit_score = customer['Credit Score']
-            rag_gpt_agent.debt_to_income_ratio = customer['Debt-to-Income Ratio']
-
+            set_customer_details(rag_gpt_agent, customer)
             rag_gpt_agent.seed_agent()  # Start with the initial stage
             initial_bot_message = rag_gpt_agent.step()
             logging.debug(f"Initial bot message: {initial_bot_message}")
@@ -137,6 +115,8 @@ def upload_file():
             logging.error("No customers found in the uploaded file.")
             return jsonify({"error": "No customers found"}), 400
 
+
+
 @app.route('/user_response', methods=['POST'])
 def user_response():
     global rag_gpt_agent
@@ -144,10 +124,24 @@ def user_response():
     user_message = data['message']
     logging.debug(f"User message: {user_message}")
 
+    end_conversation_phrases = ["bye", "goodbye", "i'm good", "no i don't need further assistance", "i'm done", "that's all", "talk later"]
+
+    # Detect if the user is ending the conversation
+    if any(phrase in user_message.lower() for phrase in end_conversation_phrases):
+        logging.info("End conversation detected.")
+        bot_message = "Okay, I'll make a note of that. Goodbye! 😊"
+        session['conversation_history'].append({"speaker": "User", "message": user_message})
+        session['conversation_history'].append({"speaker": "Agent", "message": bot_message})
+
+        # Move to the next customer
+        response = next_customer()
+        return response
+
+    # Continue the conversation if not ending
     rag_gpt_agent.human_step(user_message)
     bot_message = rag_gpt_agent.step()
     logging.debug(f"Bot message: {bot_message}")
-    
+
     if 'conversation_history' not in session:
         session['conversation_history'] = []
 
@@ -155,6 +149,7 @@ def user_response():
     session['conversation_history'].append({"speaker": "Agent", "message": bot_message})
 
     return jsonify({"bot_response": bot_message, "conversation_history": session['conversation_history']})
+
 
 @app.route('/next_customer', methods=['POST'])
 def next_customer():
@@ -175,31 +170,16 @@ def next_customer():
 
     customer = session['customers'][0]
     logging.debug(f"Next customer: {customer}")
-    rag_gpt_agent.professional_name = f"{customer['First Name']} {customer['Last Name']}"
-    rag_gpt_agent.first_name = customer['First Name']
-    rag_gpt_agent.last_name = customer['Last Name']
-    rag_gpt_agent.gender = customer['Gender']
-    rag_gpt_agent.age = customer['Age']
-    rag_gpt_agent.region = customer['Region']
-    rag_gpt_agent.occupation = customer['Occupation']
-    rag_gpt_agent.policy_number = customer['Policy Number']
-    rag_gpt_agent.policy_start_date = customer['Policy Start Date']
-    rag_gpt_agent.policy_expiry_date = customer['Policy Expiry Date']
-    rag_gpt_agent.premium_type = customer['Premium Type']
-    rag_gpt_agent.product_type = customer['Product Type']
-    rag_gpt_agent.satisfaction_score = customer['Satisfaction Score']
-    rag_gpt_agent.late_payments = customer['Number of Late Payments']
-    rag_gpt_agent.preferred_communication = customer['Preferred Communication Channel']
-    rag_gpt_agent.customer_service_interactions = customer['Number of Customer Service Interactions']
-    rag_gpt_agent.claims_filed = customer['Number of Claims Filed']
-    rag_gpt_agent.total_claim_amount = customer['Total Claim Amount']
-    rag_gpt_agent.claim_frequency = customer['Claim Frequency']
-    rag_gpt_agent.credit_score = customer['Credit Score']
-    rag_gpt_agent.debt_to_income_ratio = customer['Debt-to-Income Ratio']
-
+    set_customer_details(rag_gpt_agent, customer)
     rag_gpt_agent.seed_agent()  # Reset for the new customer
 
-    return jsonify({"customer": customer})
+    initial_bot_message = rag_gpt_agent.step()
+    logging.debug(f"Initial bot message for next customer: {initial_bot_message}")
+    conversation_history = [{"speaker": "Agent", "message": initial_bot_message}]
+    session['conversation_history'] = conversation_history
+
+    return jsonify({"message": "Moved to the next customer.", "customer": customer, "conversation_history": conversation_history})
+
 
 
 if __name__ == '__main__':

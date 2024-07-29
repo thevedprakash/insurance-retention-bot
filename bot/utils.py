@@ -36,3 +36,27 @@ def create_new_memory_retriever():
     index = faiss.IndexFlatL2(embeddings_size)
     vectorstore = FAISS(embeddings_model, index, InMemoryDocstore({}), {}, relevance_score_fn=relevance_score_fn)
     return TimeWeightedVectorStoreRetriever(vectorstore=vectorstore, other_score_keys=["importance"], k=15) 
+
+
+def set_customer_details(agent, customer):
+    agent.professional_name = f"{customer['First Name']} {customer['Last Name']}"
+    agent.first_name = customer['First Name']
+    agent.last_name = customer['Last Name']
+    agent.gender = customer['Gender']
+    agent.age = customer['Age']
+    agent.region = customer['Region']
+    agent.occupation = customer['Occupation']
+    agent.policy_number = customer['Policy Number']
+    agent.policy_start_date = customer['Policy Start Date']
+    agent.policy_expiry_date = customer['Policy Expiry Date']
+    agent.premium_type = customer['Premium Type']
+    agent.product_type = customer['Product Type']
+    agent.satisfaction_score = customer['Satisfaction Score']
+    agent.late_payments = customer['Number of Late Payments']
+    agent.preferred_communication = customer['Preferred Communication Channel']
+    agent.customer_service_interactions = customer['Number of Customer Service Interactions']
+    agent.claims_filed = customer['Number of Claims Filed']
+    agent.total_claim_amount = customer['Total Claim Amount']
+    agent.claim_frequency = customer['Claim Frequency']
+    agent.credit_score = customer['Credit Score']
+    agent.debt_to_income_ratio = customer['Debt-to-Income Ratio']
